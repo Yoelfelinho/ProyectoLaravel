@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Models\Ciudad;
+use App\Models\TipoDocumento;
 use Illuminate\Http\Request;
 
 class ClienteController extends Controller
@@ -11,15 +12,17 @@ class ClienteController extends Controller
     // Listar clientes
     public function index()
     {
-        $clientes = Cliente::with('ciudad')->get();
+        // Traemos todos los clientes con su ciudad y tipo de documento
+        $clientes = Cliente::with(['ciudad', 'tipoDocumento'])->get();
         return view('cliente.index', compact('clientes'));
     }
 
-    // Formulario create
+    // Mostrar formulario para crear cliente
     public function create()
     {
         $ciudades = Ciudad::all();
-        return view('cliente.create', compact('ciudades'));
+        $tiposDocumento = TipoDocumento::all();
+        return view('cliente.create', compact('ciudades', 'tiposDocumento'));
     }
 
     // Guardar cliente
@@ -27,74 +30,61 @@ class ClienteController extends Controller
     {
         $request->validate([
             'documento'          => 'required|unique:cliente,documento',
-            'cod_tipo_documento' => 'required|integer|in:1,2,3', // ← validar como INT
-            'nombres'            => 'required',
-            'apellidos'          => 'required',
-            'direccion'          => 'required',
+            'cod_tipo_documento' => 'required|integer|exists:tipo_de_documento,id_tipo_documento',
+            'nombres'            => 'required|string|max:100',
+            'apellidos'          => 'required|string|max:100',
+            'direccion'          => 'required|string|max:255',
             'cod_ciudad'         => 'required|exists:ciudad,codigo_ciudad',
-            'telefono'           => 'required',
+            'telefono'           => 'required|string|max:20',
         ]);
 
-        Cliente::create([
-            'documento'          => $request->documento,
-            'cod_tipo_documento' => $request->cod_tipo_documento,
-            'nombres'            => $request->nombres,
-            'apellidos'          => $request->apellidos,
-            'direccion'          => $request->direccion,
-            'cod_ciudad'         => $request->cod_ciudad,
-            'telefono'           => $request->telefono,
-        ]);
+        Cliente::create($request->only([
+            'documento', 'cod_tipo_documento', 'nombres', 'apellidos', 'direccion', 'cod_ciudad', 'telefono'
+        ]));
 
         return redirect()->route('cliente.index')
                          ->with('success', 'Cliente registrado correctamente.');
     }
 
-    // Ver cliente
-    public function show($documento)
+    // Ver cliente (detalle)
+    public function show(Cliente $cliente)
     {
-        $cliente = Cliente::with('ciudad')->findOrFail($documento);
+        $cliente->load(['ciudad', 'tipoDocumento']);
         return view('cliente.show', compact('cliente'));
     }
 
-    // Formulario edit
-    public function edit($documento)
+    // Mostrar formulario para editar cliente
+    public function edit(Cliente $cliente)
     {
-        $cliente  = Cliente::findOrFail($documento);
         $ciudades = Ciudad::all();
-        return view('cliente.edit', compact('cliente', 'ciudades'));
+        $tiposDocumento = TipoDocumento::all();
+        return view('cliente.edit', compact('cliente', 'ciudades', 'tiposDocumento'));
     }
 
     // Actualizar cliente
-    public function update(Request $request, $documento)
+    public function update(Request $request, Cliente $cliente)
     {
         $request->validate([
-            'cod_tipo_documento' => 'required|integer|in:1,2,3', // ← validar como INT
-            'nombres'            => 'required',
-            'apellidos'          => 'required',
-            'direccion'          => 'required',
+            'cod_tipo_documento' => 'required|integer|exists:tipo_de_documento,id_tipo_documento',
+            'nombres'            => 'required|string|max:100',
+            'apellidos'          => 'required|string|max:100',
+            'direccion'          => 'required|string|max:255',
             'cod_ciudad'         => 'required|exists:ciudad,codigo_ciudad',
-            'telefono'           => 'required',
+            'telefono'           => 'required|string|max:20',
         ]);
 
-        $cliente = Cliente::findOrFail($documento);
-
-        $cliente->update([
-            'cod_tipo_documento' => $request->cod_tipo_documento,
-            'nombres'            => $request->nombres,
-            'apellidos'          => $request->apellidos,
-            'direccion'          => $request->direccion,
-            'cod_ciudad'         => $request->cod_ciudad,
-            'telefono'           => $request->telefono,
-        ]);
+        $cliente->update($request->only([
+            'cod_tipo_documento', 'nombres', 'apellidos', 'direccion', 'cod_ciudad', 'telefono'
+        ]));
 
         return redirect()->route('cliente.index')
                          ->with('success', 'Cliente actualizado correctamente.');
     }
 
     // Eliminar cliente
-    public function destroy($documento)
+    public function destroy(Cliente $cliente)
     {
-        Cliente::destroy($documento);
+        $cliente->delete();
         return redirect()->route('cliente.index')
                          ->with('success', 'Cliente eliminado correctamente.');
     }
